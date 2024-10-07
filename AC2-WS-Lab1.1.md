@@ -93,6 +93,28 @@ This lab will help students experience basic Kubernetes elements such as nodes, 
    - This command shows detailed information about a specific resource, including which node it's running on, the containers it holds, and events related to its lifecycle.
 
 ---
+### **Step 6: Deploy additional applications: SDCIO**
+  To install SDCIO, copy the following snippet into a shell and execute it.
+  ```yaml
+  kubectl apply -f https://docs.sdcio.dev/artifacts/basic-usage/colocated.yaml
+   ```
+
+   ** Verification **
+   To verify that the installation did succeed, the following resources can be checked.
+
+   **API Registration**
+   Checking the api-registrations exist.
+   ```bash
+   kubectl get apiservices.apiregistration.k8s.io | grep "sdcio.dev\|NAME"
+   ```
+
+   The two services should be available.
+   ```
+   NAME                                   SERVICE                        AVAILABLE   AGE
+   v1alpha1.config.sdcio.dev              network-system/config-server   True        12m
+   v1alpha1.inv.sdcio.dev                 Local                          True        12m
+   ```
+   If the apiservices do not appear or do not show up as available, follow the [Troubleshooting](../user-guide/troubleshooting.md#config-server) section.
 
 ### **Conclusion:**
 In this lab, students learned how to interact with Kubernetes' basic components using the `cert-manager` app as an example. They explored:
@@ -100,5 +122,6 @@ In this lab, students learned how to interact with Kubernetes' basic components 
 - Pods: The basic units of deployment in Kubernetes.
 - Deployments: Ensuring high availability and scaling.
 - Labels: Organizing and filtering resources.
+- API Registration: Checking if API has been registered.
 
 By understanding and applying these core concepts, students can effectively manage and troubleshoot applications running in a Kubernetes cluster.

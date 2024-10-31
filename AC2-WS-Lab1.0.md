@@ -5,19 +5,36 @@ This lab will guide you through setting up a local Kubernetes cluster using **Ki
 ---
 
 ### **Step 0: Set Up Your Kubernetes Cluster (Kind)**
-#### **What is Kind?**
-**Kind** is a tool for running local Kubernetes clusters using Docker container "nodes." It’s great for learning, testing, or developing on Kubernetes.
 
-#### **Installation of Kind**
+#### **What is Codespaces?**
+GitHub Codespaces is a cloud-based development environment that lets you code directly in the cloud using Visual Studio Code. It provides pre-configured containers with your code, dependencies, and tools, allowing you to start coding instantly without setting up a local development environment.
+
+#### **Start your Codespaces instance**
+To start your lab, use this link: https://github.com/codespaces/new/kubenet-dev/ac2-kubenet-workshop
+Then Check the configuration before continue. Ensure the repo name is: `kubenet-dev/ac2-kubenet-workshop`
+Make sure you are using the 4-core instance
+
+There’s a free usage limit (120 core hours), which you can check under the Codespaces section
+https://github.com/settings/billing/summary.
+
+   **Important:** after using it, stop it and remove it at https://github.com/codespaces or it will keep using your free usage quota.
+
+Click on **Create codespace**
+
+Wait a few minutes for codespaces to load and go to the **Terminal** Section
+
+#### **What is Kind?**
+**Kind** is a opensource tool for running local Kubernetes clusters using Docker container "nodes." It’s great for learning, testing, or developing on Kubernetes.
+
+#### **Installation of Kind and kubectl**
+**Important:** You can skip this part if you are using GitHub codespaces.
 1. **Install Kind**  
    Run the following commands to download and set up Kind:
    ```bash
-   [ $(uname -m) = x86_64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+   curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
    chmod +x ./kind
    sudo mv ./kind /usr/local/bin/kind
    ```
-
-#### **Create Your Kubernetes Cluster**
 2. **Create a Kind-based Kubernetes cluster**  
    ```bash
    kind create cluster
@@ -29,35 +46,42 @@ This lab will guide you through setting up a local Kubernetes cluster using **Ki
    ```
    - **Explanation**: This command allows the Kind cluster to communicate properly with other network elements.
 
----
-
-### **Step 1: Install and Configure `kubectl`**
+4. **Install `kubectl`**
 `kubectl` is the command-line tool for managing Kubernetes clusters.
-
-#### **Installation of kubectl**
-1. **Install `kubectl`**
    ```bash
    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
    chmod +x ./kubectl
    sudo mv ./kubectl /usr/local/bin/kubectl
    ```
-
-#### **Verify the Installation**
-2. **Check the `kubectl` version**
+5.  **Verify the Installation**
+Check the `kubectl` version
    ```bash
    kubectl version --client
    ```
+---
 
-3. **Verify your cluster access**  
-   Check if `kubectl` is configured to connect to your cluster:
+### **Step 1: Install and Configure `kubectl`**
+1. **Create Kind Cluster and docker Network for GitHub CodeSpaces**
+   If you are using codespaces, you need to create a docker network before to create the cluster. Otherwise, **go to Step 2**.
+   Create docker network:
    ```bash
-   kubectl cluster-info
+   docker network create -d=bridge -o com.docker.network.bridge.enable_ip_masquerade=true -o com.docker.network.driver.mtu=1500 --subnet fc00:f853:ccd:e793::/64 kind
+   ```
+   Create one-node kubernetes cluster
+   ```bash
+   kind create cluster
    ```
 
 ---
 
 ### **Step 2: Check Core Kubernetes Components**
 After setting up the cluster, you’ll see several pods running in the `kube-system` namespace. These are the core components of your Kubernetes cluster.
+
+### **Verify your cluster access**  
+   Check if `kubectl` is configured to connect to your cluster:
+   ```bash
+   kubectl cluster-info
+   ```
 
 #### **List the Core Pods**
 1. **View pods in the `kube-system` namespace**

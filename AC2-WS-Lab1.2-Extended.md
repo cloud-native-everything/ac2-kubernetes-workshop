@@ -1,3 +1,7 @@
+Here's the complete document with the required patches to add the context for code installation and reconciliation logging. The YAML content remains the same as per your request.
+
+---
+
 ### Lab Guide: Create and Reconcile a Custom Resource Definition (CRD)
 
 **Note: This lab is an extension of the Session 1 and will not be covered as part of the workshop**
@@ -94,44 +98,48 @@ Now that the CRD is defined, we can create a custom resource that uses it.
 
 ---
 
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: krm-crd-lab
-  name: crontab-controller-role
-rules:
-  - apiGroups: ["stable.example.com"]
-    resources: ["crontabs"]
-    verbs: ["get", "list", "watch"]
+### **Step 3.1: Configure Permissions**
+To allow the controller to access the `CronTab` resource, you need to create a Role and RoleBinding:
 
-```   
+1. **Create the Role**  
+   Save the following YAML as `crontab-controller-role.yaml`:
 
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: crontab-controller-rolebinding
-  namespace: krm-crd-lab
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: krm-crd-lab
-roleRef:
-  kind: Role
-  name: crontab-controller-role
-  apiGroup: rbac.authorization.k8s.io
+   ```yaml
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     namespace: krm-crd-lab
+     name: crontab-controller-role
+   rules:
+     - apiGroups: ["stable.example.com"]
+       resources: ["crontabs"]
+       verbs: ["get", "list", "watch"]
+   ```
 
-```
+2. **Create the RoleBinding**  
+   Save the following YAML as `crontab-controller-rolebinding.yaml`:
 
-execute
-```bash
-kubectl apply -f crontab-controller-role.yaml
-kubectl apply -f crontab-controller-rolebinding.yaml
-```
+   ```yaml
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: RoleBinding
+   metadata:
+     name: crontab-controller-rolebinding
+     namespace: krm-crd-lab
+   subjects:
+     - kind: ServiceAccount
+       name: default
+       namespace: krm-crd-lab
+   roleRef:
+     kind: Role
+     name: crontab-controller-role
+     apiGroup: rbac.authorization.k8s.io
+   ```
 
-
-
+3. **Apply the Role and RoleBinding**
+   ```bash
+   kubectl apply -f crontab-controller-role.yaml
+   kubectl apply -f crontab-controller-rolebinding.yaml
+   ```
 
 ---
 
@@ -194,7 +202,7 @@ We’ll create a simple controller that watches the `CronTab` resource and print
    ```
 
 3. **Run the controller in a pod (temporary setup)**  
-   This command will run the controller inside a Python container:
+   This command will run the controller inside a Python container with the necessary packages installed:
 
    ```yaml
    apiVersion: v1
@@ -233,16 +241,17 @@ We’ll create a simple controller that watches the `CronTab` resource and print
        - name: config-volume
          configMap:
            name: crontab-controller
-   
    ```
 
-   
+4. **Start the Pod**
+
    ```bash
-   kubectl run crontab-controller --image=python:3.9 --restart=Never -n krm-crd-lab --command -- python /controller.py
+   kubectl apply -f crontab-controller-pod.yaml
    ```
 
 5. **Check the controller logs to see reconciliation**  
    The controller will print messages as it reconciles the `CronTab` resources:
+
    ```bash
    kubectl logs crontab-controller -n krm-crd-lab
    ```

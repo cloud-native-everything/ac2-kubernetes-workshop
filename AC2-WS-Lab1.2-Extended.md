@@ -94,11 +94,53 @@ Now that the CRD is defined, we can create a custom resource that uses it.
 
 ---
 
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: krm-crd-lab
+  name: crontab-controller-role
+rules:
+  - apiGroups: ["stable.example.com"]
+    resources: ["crontabs"]
+    verbs: ["get", "list", "watch"]
+
+```   
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crontab-controller-rolebinding
+  namespace: krm-crd-lab
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: krm-crd-lab
+roleRef:
+  kind: Role
+  name: crontab-controller-role
+  apiGroup: rbac.authorization.k8s.io
+
+```
+
+execute
+```bash
+kubectl apply -f crontab-controller-role.yaml
+kubectl apply -f crontab-controller-rolebinding.yaml
+```
+
+
+
+
+---
+
 ### **Step 4: Create a Basic Controller to Reconcile the Custom Resource**
 We’ll create a simple controller that watches the `CronTab` resource and prints messages when it detects changes.
 
 1. **Create a YAML file for the controller**  
    Create a file named `crontab-controller.yaml` with the following content:
+
    ```yaml
    apiVersion: v1
    kind: ConfigMap
@@ -109,18 +151,19 @@ We’ll create a simple controller that watches the `CronTab` resource and print
      controller.py: |
        import os
        import time
+       import sys
        import kubernetes
        from kubernetes import client, config
-
+   
        config.load_incluster_config()
        api_instance = client.CustomObjectsApi()
-
+   
        while True:
            crontabs = api_instance.list_namespaced_custom_object(
                group="stable.example.com", version="v1", namespace="krm-crd-lab", plural="crontabs"
            )
            for crontab in crontabs['items']:
-               print(f"Reconciling CronTab: {crontab['metadata']['name']}")
+               print(f"Reconciling CronTab: {crontab['metadata']['name']}", flush=True)
            time.sleep(30)
    ```
 
@@ -131,11 +174,53 @@ We’ll create a simple controller that watches the `CronTab` resource and print
 
 3. **Run the controller in a pod (temporary setup)**  
    This command will run the controller inside a Python container:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crontab-controller
+  namespace: krm-crd-lab
+spec:
+  initContainers:
+    - name: install-kubernetes-client
+      image: python:3.9
+      command:
+        - /bin/sh
+        - -c
+        - |
+          pip install --target /app kubernetes
+      volumeMounts:
+        - name: app-volume
+          mountPath: /app
+  containers:
+    - name: crontab-controller
+      image: python:3.9
+      command: ["python", "/app/controller.py"]
+      volumeMounts:
+        - name: app-volume
+          mountPath: /app
+        - name: config-volume
+          mountPath: /app/controller.py
+          subPath: controller.py
+      env:
+        - name: PYTHONPATH
+          value: "/app"
+  volumes:
+    - name: app-volume
+      emptyDir: {}
+    - name: config-volume
+      configMap:
+        name: crontab-controller
+
+```
+
+   
    ```bash
    kubectl run crontab-controller --image=python:3.9 --restart=Never -n krm-crd-lab --command -- python /controller.py
    ```
 
-4. **Check the controller logs to see reconciliation**  
+5. **Check the controller logs to see reconciliation**  
    The controller will print messages as it reconciles the `CronTab` resources:
    ```bash
    kubectl logs crontab-controller -n krm-crd-lab

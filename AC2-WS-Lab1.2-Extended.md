@@ -152,19 +152,40 @@ We’ll create a simple controller that watches the `CronTab` resource and print
        import os
        import time
        import sys
+       from deepdiff import DeepDiff
        import kubernetes
        from kubernetes import client, config
    
        config.load_incluster_config()
        api_instance = client.CustomObjectsApi()
    
+       # Dictionary to store the last known state of each CronTab
+       last_observed_state = {}
+   
        while True:
            crontabs = api_instance.list_namespaced_custom_object(
                group="stable.example.com", version="v1", namespace="krm-crd-lab", plural="crontabs"
            )
            for crontab in crontabs['items']:
-               print(f"Reconciling CronTab: {crontab['metadata']['name']}", flush=True)
+               name = crontab['metadata']['name']
+               current_state = crontab['spec']
+   
+               # Check for changes by comparing with the last known state
+               if name in last_observed_state:
+                   # Detect changes between the current state and the last observed state
+                   diff = DeepDiff(last_observed_state[name], current_state, ignore_order=True)
+                   if diff:
+                       print(f"Changes detected in CronTab '{name}': {diff}", flush=True)
+                   else:
+                       print(f"No changes detected for CronTab '{name}'", flush=True)
+               else:
+                   print(f"First observation of CronTab '{name}': {current_state}", flush=True)
+   
+               # Update the last observed state
+               last_observed_state[name] = current_state
+   
            time.sleep(30)
+
    ```
 
 2. **Apply the controller configuration**
@@ -175,45 +196,45 @@ We’ll create a simple controller that watches the `CronTab` resource and print
 3. **Run the controller in a pod (temporary setup)**  
    This command will run the controller inside a Python container:
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: crontab-controller
-  namespace: krm-crd-lab
-spec:
-  initContainers:
-    - name: install-kubernetes-client
-      image: python:3.9
-      command:
-        - /bin/sh
-        - -c
-        - |
-          pip install --target /app kubernetes
-      volumeMounts:
-        - name: app-volume
-          mountPath: /app
-  containers:
-    - name: crontab-controller
-      image: python:3.9
-      command: ["python", "/app/controller.py"]
-      volumeMounts:
-        - name: app-volume
-          mountPath: /app
-        - name: config-volume
-          mountPath: /app/controller.py
-          subPath: controller.py
-      env:
-        - name: PYTHONPATH
-          value: "/app"
-  volumes:
-    - name: app-volume
-      emptyDir: {}
-    - name: config-volume
-      configMap:
-        name: crontab-controller
-
-```
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: crontab-controller
+     namespace: krm-crd-lab
+   spec:
+     initContainers:
+       - name: install-kubernetes-client
+         image: python:3.9
+         command:
+           - /bin/sh
+           - -c
+           - |
+             pip install --target /app kubernetes deepdiff
+         volumeMounts:
+           - name: app-volume
+             mountPath: /app
+     containers:
+       - name: crontab-controller
+         image: python:3.9
+         command: ["python", "/app/controller.py"]
+         volumeMounts:
+           - name: app-volume
+             mountPath: /app
+           - name: config-volume
+             mountPath: /app/controller.py
+             subPath: controller.py
+         env:
+           - name: PYTHONPATH
+             value: "/app"
+     volumes:
+       - name: app-volume
+         emptyDir: {}
+       - name: config-volume
+         configMap:
+           name: crontab-controller
+   
+   ```
 
    
    ```bash
